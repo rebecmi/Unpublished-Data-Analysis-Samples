@@ -1,0 +1,679 @@
+---
+title: "C19CSY3_quant"
+author: "Rebecca Milan"
+date: "2024-02-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+## OMITTED B/C OF PERSONAL FILE PATHS
+```
+
+```{r run assoc libraries}
+library(ggplot2)
+library(dplyr)
+library(haven)
+library(car)
+library(coefplot)
+library(nnet)
+library(knitr)
+library(survey)
+```
+
+
+```{r Import c19cs stata dataset}
+## OMITTED B/C OF PERSONAL FILE PATHS
+``` 
+
+```{r create sample dataset}
+samptot <- c19cs_soceduexe %>% 
+  filter(!is.na(edu_diff), !is.na(t36_cesd_tot), !is.na(t36_anx_tot), !is.na(t36_lonely_tot), !is.na(exe_diff), !is.na(soc_diff), !is.na(pop_attwf36m))
+
+```
+
+
+
+```{r data cleaning}
+## Exercise Routine diffs
+c19cs_soceduexe$exe_difflab <- factor(c19cs_soceduexe$exe_diff, levels = c(0,1), labels= c("No","Yes"), exclude=NULL)
+
+## Sex
+c19cs_soceduexe$sex_36 <- factor(c19cs_soceduexe$sex_36, levels = c(0,1, 2, 3), labels= c("Male","Female", "Other", "Prefer not to answer"), exclude=NULL)
+
+## Race
+c19cs_soceduexe$racialized_36 <- factor(c19cs_soceduexe$racialized_36, levels = c(1, 2, 3, 4, 5, 6, 7), labels= c("NH White","NH Black", "Hispanic or Latinx", "East Asian or Native Hawaiian or Other Pacific Islander", "American Indian or Alaska Native", "Asian Indian", "Other"), exclude=NULL)
+
+## Relationship status
+c19cs_soceduexe$relat36m <- factor(c19cs_soceduexe$relat36m, levels = c(1, 2, 3, 4, 5), labels= c("single, never married", "single, divorced/separated", "single, widowed", "married or in a relationship", "other"), exclude=NULL)
+
+## Education level
+c19cs_soceduexe$educ_36 <- factor(c19cs_soceduexe$educ_36, levels = c(1, 2, 3, 4, 5,6), labels= c("less than high school", "high school diploma", "high school equivalent", "some college", "college graduate", "graduate school"), exclude=NULL)
+
+##Employment Status
+c19cs_soceduexe$emp_36m <- factor(c19cs_soceduexe$emp_36m, levels = c(0, 1, 2, 3, 4, 5), labels= c("Not working", "working", "in school", "retired", "homemaker", "other"), exclude=NULL)
+
+## Moved since baseline
+c19cs_soceduexe$moved_36 <- factor(c19cs_soceduexe$moved_36, levels = c(0,1), labels= c("No","Yes"), exclude=NULL)
+
+
+## Loneliness categorical variable
+# Create multi-categorical variable
+breaks<- c(3, 5, 7, 9)
+c19cs_soceduexe$lonely_catlab <- cut(c19cs_soceduexe$t36_lonely_tot, breaks = breaks, labels= c("Hardly Ever lonely", "Some of the time lonely", "Often lonely"))
+table(c19cs_soceduexe$lonely_catlab)
+
+breaks<- c(3, 5, 7, 9)
+c19cs_soceduexe$lonely_cat <- cut(c19cs_soceduexe$t36_lonely_tot, breaks = breaks, labels= c(0, 1, 2))
+table(c19cs_soceduexe$lonely_cat)
+
+# Create loneliness binary-categorical variable
+breaks_lonely <- c(3,5,9) 
+c19cs_soceduexe$lonely_bin <- cut(c19cs_soceduexe$t36_lonely_tot, breaks=breaks_lonely, labels= c(0,1))
+table(c19cs_soceduexe$lonely_bin, c19cs_soceduexe$t36_lonely_tot)
+table(c19cs_soceduexe$lonely_bin)
+
+### 0= "Hardly ever lonely"
+### 1= "lonely some of the time or often"
+
+
+### https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8285042/
+
+## anxiety multi-categorical variable
+c19cs_soceduexe$t36_anx_catlab <- factor(c19cs_soceduexe$t36_anx_cat, levels = c(0,1,2), labels= c("Normal/No anxiety","Mild/Moderate anxiety", "Severe anxiety"), exclude=NULL)
+
+## anxiety binary categorical variable
+breaks_anx <- c(-1,0,2)
+c19cs_soceduexe$t36_anx_bin <- cut(c19cs_soceduexe$t36_anx_cat, breaks=breaks_anx, labels = c(0,1))
+table(c19cs_soceduexe$t36_anx_bin, c19cs_soceduexe$t36_anx_cat)
+table(c19cs_soceduexe$t36_anx_bin)
+
+## Label cesd categorical variable
+c19cs_soceduexe$t36_cesd_catlab <- factor(c19cs_soceduexe$t36_cesd_cat, levels = c(0,1), labels= c("Little to no depressive symptoms","Has depressive symptoms"), exclude=NULL)
+table(c19cs_soceduexe$t36_cesd_catlab)
+
+## CES-D binary variable
+breaks_dep <- c(-1,0,1)
+c19cs_soceduexe$t36_cesd_bin <- cut(c19cs_soceduexe$t36_cesd_cat, breaks=breaks_dep, labels = c(0,1))
+table(c19cs_soceduexe$t36_cesd_bin, c19cs_soceduexe$t36_cesd_cat)
+table(c19cs_soceduexe$t36_cesd_bin)
+
+## Check labels
+#str(c19cs_soceduexe)
+
+```
+
+
+```{r mental health variable}
+## Create Combined mental health variable with anxiety, loneliness, and depression
+# Combine the variables
+c19cs_soceduexe$combo_mhealth <- paste(c19cs_soceduexe$t36_anx_cat, c19cs_soceduexe$t36_cesd_cat, c19cs_soceduexe$lonely_cat, sep = "_")
+table(c19cs_soceduexe$combo_mhealth)
+c19cs_soceduexe$combo_mhealth2 <- paste(c19cs_soceduexe$t36_anx_cat, c19cs_soceduexe$t36_cesd_cat, c19cs_soceduexe$lonely_cat, sep = "_")
+
+# Multi-categorical mental health var
+## recode mental health var so 0= no mental health conditions, 1= 1 moderate/severe mental health condition, 2= 2 or more moderate/severe mental health conditions, 3=inconclusive
+c19cs_soceduexe <- c19cs_soceduexe %>%
+  mutate(combo_mhealth = case_when(
+    combo_mhealth == "0_0_0" ~ "0",
+    combo_mhealth== "0_0_1" ~ "1",
+    combo_mhealth== "1_0_0" ~ "1",
+    combo_mhealth== "0_1_0" ~ "1",
+    combo_mhealth== "0_0_2" ~ "1",
+    combo_mhealth== "2_0_0" ~ "1",
+    combo_mhealth== "0_2_0" ~ "1",
+    combo_mhealth== "1_1_0" ~ "2",
+    combo_mhealth== "0_1_1" ~ "2",
+    combo_mhealth== "1_0_1" ~ "2",
+    combo_mhealth== "1_1_1" ~ "2",
+    combo_mhealth== "1_2_1" ~ "2",
+    combo_mhealth== "2_1_1" ~ "2",
+    combo_mhealth== "1_1_2" ~ "2",
+    combo_mhealth== "2_2_1" ~ "2",
+    combo_mhealth== "2_2_2" ~ "2",
+    combo_mhealth== "1_2_2" ~ "2",
+    combo_mhealth== "0_2_1" ~ "2",
+    combo_mhealth== "1_2_0" ~ "2",
+    combo_mhealth== "2_1_0" ~ "2",
+    combo_mhealth== "0_1_2" ~ "2",
+    combo_mhealth== "1_0_2" ~ "2",
+    combo_mhealth== "2_0_1" ~ "2",
+    combo_mhealth== "NA_NA_NA" ~ "3",
+    combo_mhealth== "NA_0_NA" ~ "3",
+    combo_mhealth== "NA_1_0" ~ "3", 
+    combo_mhealth== "NA_1_2" ~ "3",
+    combo_mhealth== "NA_1_NA" ~ "3",
+    combo_mhealth== "NA_NA_0" ~ "3",
+    combo_mhealth== "2_1_NA" ~ "3",
+    combo_mhealth== "NA_0_0" ~ "3",
+    combo_mhealth== "NA_0_1" ~ "3",
+    combo_mhealth== "2_0_NA" ~ "3",
+    combo_mhealth== "1_1_NA" ~ "3",
+    combo_mhealth== "1_0_NA" ~ "3",
+    combo_mhealth== "0_1_NA" ~ "3",
+    combo_mhealth== "0_NA_NA" ~ "3",
+    combo_mhealth== "0_0_NA" ~ "3"))
+### 0=No mental conditions; 1=1 mod/sev mental health condition; 2=2 or more mod/sev mental health conditions; 3=missing data on 1 or more mental health conditions
+
+table(c19cs_soceduexe$combo_mhealth)
+
+## Check 
+table(c19cs_soceduexe$combo_mhealth, c19cs_soceduexe$combo_mhealth2)
+
+## Create binary categorical mental health condition variable
+c19cs_soceduexe$mental_bin <- paste(c19cs_soceduexe$t36_anx_bin, c19cs_soceduexe$t36_cesd_bin, c19cs_soceduexe$lonely_bin, sep = "_")
+table(c19cs_soceduexe$mental_bin)
+c19cs_soceduexe$mental_bin2 <- paste(c19cs_soceduexe$t36_anx_bin, c19cs_soceduexe$t36_cesd_bin, c19cs_soceduexe$lonely_bin, sep = "_")
+table(c19cs_soceduexe$mental_bin2)
+
+
+c19cs_soceduexe <- c19cs_soceduexe %>%
+  mutate(mental_bin = case_when(
+    mental_bin == "0_0_0" ~ "0",
+    mental_bin == "1_0_0" ~ "1",
+    mental_bin == "0_1_0" ~ "1",
+    mental_bin == "0_0_1" ~ "1",
+    mental_bin == "1_1_0" ~ "1",
+    mental_bin == "0_1_1" ~ "1",
+    mental_bin == "1_0_1" ~ "1",
+    mental_bin == "1_1_1" ~ "1",
+    mental_bin == "NA_1_1" ~ "2", 
+    mental_bin == "NA_1_NA" ~ "2", 
+    mental_bin == "NA_NA_0" ~ "2", 
+    mental_bin == "NA_NA_NA" ~ "2",
+    mental_bin == "1_1_NA" ~ "2",
+    mental_bin == "NA_0_0" ~ "2",
+    mental_bin == "NA_0_1" ~ "2",
+    mental_bin == "NA_0_NA" ~ "2",
+    mental_bin == "NA_1_0" ~ "2",
+    mental_bin == "1_0_NA" ~ "2",
+    mental_bin == "0_NA_NA" ~ "2",
+    mental_bin == "0_1_NA" ~ "2",
+    mental_bin == "0_0_NA" ~ "2"))
+table(c19cs_soceduexe$mental_bin, c19cs_soceduexe$mental_bin2)
+table(c19cs_soceduexe$mental_bin)
+
+
+# Create combined mental health varibale with anxiety and depression only, multicategorical
+c19cs_soceduexe$anxdep_combo <- paste(c19cs_soceduexe$t36_anx_cat, c19cs_soceduexe$t36_cesd_cat, sep = "_")
+table(c19cs_soceduexe$anxdep_combo)
+c19cs_soceduexe$anxdep_combo2 <- paste(c19cs_soceduexe$t36_anx_cat, c19cs_soceduexe$t36_cesd_cat, sep = "_")
+
+c19cs_soceduexe <- c19cs_soceduexe %>%
+  mutate(anxdep_combo = case_when(
+    anxdep_combo == "0_0" ~ 0,
+    anxdep_combo== "0_1" ~ 1,
+    anxdep_combo == "1_0" ~ 1,
+    anxdep_combo== "1_1" ~ 1,
+    anxdep_combo== "2_1" ~ 1,
+    anxdep_combo== "2_0" ~ 1))
+table(c19cs_soceduexe$anxdep_combo, c19cs_soceduexe$anxdep_combo2)
+table(c19cs_soceduexe$anxdep_combo)
+## Dropped missing values because less than 5% of sample
+
+# Create Binary categorical dep/anx combo
+c19cs_soceduexe$anxdep_bin <- paste(c19cs_soceduexe$t36_anx_bin, c19cs_soceduexe$t36_cesd_bin, sep = "_")
+table(c19cs_soceduexe$anxdep_bin)
+c19cs_soceduexe$anxdep_bin2 <- paste(c19cs_soceduexe$t36_anx_bin, c19cs_soceduexe$t36_cesd_bin, sep = "_")
+c19cs_soceduexe <- c19cs_soceduexe %>%
+  mutate(anxdep_bin = case_when(
+    anxdep_bin == "0_0" ~ 0,
+    anxdep_bin== "0_1" ~ 1,
+    anxdep_bin == "1_0" ~ 1,
+    anxdep_bin== "1_1" ~ 1))
+
+## NA values were dropped as missing since less than 5% of sample
+
+
+```
+
+```{r demographics}
+summary(c19cs_soceduexe$age_36)
+table(c19cs_soceduexe$sex_36)
+table(c19cs_soceduexe$racialized_36)
+table(c19cs_soceduexe$relat36m)
+table(c19cs_soceduexe$educ_36)
+```
+
+
+```{r dep descriptives}
+## Descriptive stats
+
+### Exercise
+mean_cesdex <- c19cs_soceduexe %>%
+  group_by(exe_diff) %>%
+  summarize(mean_cesd = mean(t36_cesd_tot, na.rm = TRUE))
+
+# Print the result
+print(mean_cesdex)
+
+
+### Social
+mean_cesdsoc <- c19cs_soceduexe %>%
+  group_by(soc_diff) %>%
+  summarize(mean_cesd = mean(t36_cesd_tot, na.rm = TRUE))
+
+# Print the result
+print(mean_cesdsoc)
+
+
+### Education
+mean_cesdedu <- c19cs_soceduexe %>%
+  group_by(edu_diff) %>%
+  summarize(mean_cesd = mean(t36_cesd_tot, na.rm = TRUE))
+
+# Print the result
+print(mean_cesdedu)
+
+
+
+
+```
+
+```{r depression descriptives and ttest}
+### Create boxplot of yes vs. no exercise routine change and CES-D scores
+
+str(c19cs_soceduexe$exe_diff)
+str(c19cs_soceduexe$t36_cesd_tot)
+
+c19cs_soceduexe %>% 
+  filter(!is.na(exe_difflab), !is.na(t36_cesd_tot)) %>% 
+ggplot(aes(y= t36_cesd_tot, x= exe_difflab, group=exe_diff, fill= exe_difflab)) +
+  geom_boxplot() +
+  labs (title = "Boxplot of CES-D Scores by Change in Exercise routine",
+        x = "Reported Change in Exercise Routine", y = "CES-D Score") + 
+  theme_minimal()
+
+### Exercise vs. 
+c19cs_soceduexe %>% 
+  filter(!is.na(exe_difflab), !is.na(t36_cesd_tot)) %>% 
+ggplot(aes(x = exe_difflab, y = t36_cesd_tot)) +
+  stat_summary(fun = mean, geom = "bar", fill = "violet", color = "black", position = "dodge") +
+  labs(title = "Bar Graph of Mean CES-D Scores by Change in Exercise Routine",
+       x = "Reported change in Exercise Routine", y = "Mean CES-D Scores") +
+  theme_minimal()
+
+### EDUCATION Routine Bar Graph
+c19cs_soceduexe %>% 
+  filter(!is.na(edu_diff), !is.na(t36_cesd_tot)) %>% 
+ggplot(aes(x = edu_diff, y = t36_cesd_tot)) +
+  stat_summary(fun = mean, geom = "bar", fill = "blue", color = "black", position = "dodge") +
+  labs(title = "Bar Graph of Mean CES-D Scores by Change in Exercise Routine",
+       x = "Reported change in Education/Creative Routine", y = "Mean CES-D Scores") +
+  theme_minimal()
+
+
+### social Routine bar graph
+c19cs_soceduexe %>% 
+  filter(!is.na(edu_diff), !is.na(t36_cesd_tot)) %>% 
+ggplot(aes(x = edu_diff, y = t36_cesd_tot)) +
+  stat_summary(fun = mean, geom = "bar", fill = "blue", color = "black", position = "dodge") +
+  labs(title = "Bar Graph of Mean CES-D Scores by Change in Exercise Routine",
+       x = "Reported change in Education/Creative Routine", y = "Mean CES-D Scores") +
+  theme_minimal()
+
+
+## T-Tests
+# Perform t-test for each group
+unique(c19cs_soceduexe$exe_diff)
+
+dep_tresult <- t.test(t36_cesd_tot ~ exe_diff, data = c19cs_soceduexe, na.rm = TRUE)
+
+# Print the t-test results
+print(dep_tresult)
+```
+
+```{r anxiety descriptives and ttest}
+## Descriptives
+
+str(c19cs_soceduexe$t36_anx_tot)
+meansd_anxyes <- c19cs_soceduexe %>% 
+  filter(exe_diff == 1, !is.na(exe_diff), !is.na(t36_anx_tot)) %>% 
+  summarise(mean = mean(t36_anx_tot),
+            sd = sd(t36_anx_tot))
+meansd_anxyes
+
+meansd_anxno <- c19cs_soceduexe %>% 
+  filter(exe_diff == 0, !is.na(exe_diff), !is.na(t36_anx_tot)) %>% 
+  summarise(mean = mean(t36_anx_tot),
+            sd = sd(t36_anx_tot))
+
+meansd_anxno
+
+### Create boxplot of yes vs. no exercise routine change and anxiety scores
+
+str(c19cs_soceduexe$exe_difflab)
+str(c19cs_soceduexe$t36_anx_tot)
+
+c19cs_soceduexe %>% 
+  filter(!is.na(exe_difflab), !is.na(t36_anx_tot)) %>% 
+ggplot(aes(y= t36_cesd_tot, x= exe_difflab, group=exe_diff, fill= exe_difflab)) +
+  geom_boxplot() +
+  labs (title = "Boxplot of Anxiety Scores by Change in Exercise routine",
+        x = "Reported Change in Exercise Routine", y = "Anxiety Score") + 
+  theme_minimal()
+
+
+c19cs_soceduexe %>% 
+  filter(!is.na(exe_difflab), !is.na(t36_anx_tot)) %>% 
+ggplot(aes(y= t36_cesd_tot, group=exe_diff, fill= exe_difflab)) +
+  geom_bar() +
+  labs (title = "Bar graph of Average Anxiety Scores by Change in Exercise routine",
+        x = "Reported Change in Exercise Routine", y = "Anxiety Score") + 
+  theme_minimal()
+
+
+
+### Create bar graph 
+c19cs_soceduexe %>% 
+  filter(!is.na(exe_difflab), !is.na(t36_anx_tot)) %>% 
+ggplot(aes(x = exe_difflab, y = t36_anx_tot)) +
+  stat_summary(fun = mean, geom = "bar", fill = "lightblue", color = "black", position = "dodge") +
+  labs(title = "Bar Graph of Mean Anxiety Scores by Change in Exercise Routine",
+       x = "Reported change in Exercise Routine", y = "Mean Anxiety Scores") +
+  theme_minimal()
+
+
+## T-Tests
+# Perform t-test for each group
+anx_tresult <- t.test(t36_anx_tot ~ exe_diff, data = c19cs_soceduexe, na.rm = TRUE)
+
+# Print the t-test results
+print(anx_tresult)
+
+```
+
+
+```{r depression and rooutines linear regression}
+
+## Linear regression model
+
+### Create linear regression data
+linear_datadexe <- c19cs_soceduexe %>% 
+filter(!is.na(exe_diff), !is.na(t36_cesd_tot), !is.na(pop_attwf36m))  %>% 
+  select(t36_cesd_tot, exe_diff, racialized_36, sex_36, relat36m, educ_36, emp_36m, t36_anx_tot, t36_lonely_tot, pop_attwf36m)
+
+linear_datadedu <- c19cs_soceduexe %>% 
+  filter(!is.na(edu_diff), !is.na(t36_cesd_tot), !is.na(pop_attwf36m)) %>% 
+  select(t36_cesd_tot, edu_diff, racialized_36, sex_36, relat36m, educ_36, emp_36m, t36_anx_tot,  pop_attwf36m)
+
+linear_datadsoc <- c19cs_soceduexe %>% 
+  filter(!is.na(soc_diff), !is.na(t36_cesd_tot), !is.na(pop_attwf36m)) %>% 
+  select(t36_cesd_tot, soc_diff, racialized_36, sex_36, relat36m, educ_36, emp_36m, t36_anx_tot, pop_attwf36m)
+
+###Check data
+summary(linear_datadexe)
+summary(linear_datadedu)
+summary(linear_datadsoc)
+
+### Run Unadjusted Model
+linear_depex <- lm(t36_cesd_tot ~ exe_diff, data=linear_datadexe)
+summary(linear_depex)
+linear_deped <- lm(t36_cesd_tot ~ edu_diff, data=linear_datadedu)
+summary(linear_deped)
+linear_depsoc <- lm(t36_cesd_tot ~ soc_diff, data=linear_datadsoc)
+summary(linear_depsoc)
+
+### Run Adjusted Model: exercise
+wgt_dexe<- svydesign(ids= ~1, weights=~pop_attwf36m, data= linear_datadexe)
+
+linear_depex <- svyglm(t36_cesd_tot ~ exe_diff + racialized_36 + sex_36 + relat36m + educ_36 + emp_36m + t36_anx_tot, data=linear_datadexe, design=wgt_dexe)
+summary(linear_depex)
+
+# Print the confidence intervals
+conf_depex <- confint(linear_depex, level = 0.95)
+
+print(conf_depex)
+
+### Run Adjusted Model: education
+wgt_dedu<- svydesign(ids= ~1, weights=~pop_attwf36m, data= linear_datadedu)
+linear_deped <- svyglm(t36_cesd_tot ~ edu_diff + racialized_36 + sex_36 + relat36m + educ_36 + emp_36m + t36_anx_tot, data=linear_datadedu, design=wgt_dedu)
+summary(linear_deped)
+
+# Print the confidence intervals
+conf_deped <- confint(linear_deped, level = 0.95)
+
+print(conf_deped)
+
+### Run Adjusted Model: social (weighted)
+wgt_dsoc<- svydesign(ids= ~1, weights=~pop_attwf36m, data= linear_datadsoc)
+
+linear_depsoc <- svyglm(t36_cesd_tot ~ soc_diff + racialized_36 + sex_36 + relat36m + educ_36 + emp_36m + t36_anx_tot, data=linear_datadsoc, design=wgt_dsoc)
+summary(linear_depsoc)
+
+# Print the confidence intervals
+conf_depsoc <- confint(linear_depsoc, level = 0.95)
+
+print(conf_depsoc)
+
+```
+
+```{r linear regression: anxiety score and change in routines}
+
+## Linear regression model: anxiety
+
+### Create linear regression model dataset
+linear_dataaexe <- c19cs_soceduexe %>% 
+  filter(!is.na(exe_diff), !is.na(t36_anx_tot), !is.na(pop_attwf36m)) %>% 
+  select(t36_anx_tot, exe_diff, racialized_36, sex_36, relat36m, educ_36, emp_36m, t36_cesd_tot, pop_attwf36m)
+
+linear_dataaedu <- c19cs_soceduexe %>% 
+  filter(!is.na(edu_diff), !is.na(t36_anx_tot),  !is.na(pop_attwf36m)) %>% 
+  select(t36_anx_tot, edu_diff, racialized_36, sex_36, relat36m, educ_36, emp_36m, t36_lonely_tot, t36_cesd_tot, pop_attwf36m)
+
+linear_dataasoc <- c19cs_soceduexe %>% 
+  filter(!is.na(soc_diff), !is.na(t36_anx_tot),  !is.na(pop_attwf36m)) %>% 
+  select(t36_anx_tot, soc_diff, racialized_36, sex_36, relat36m, educ_36, emp_36m, t36_lonely_tot, t36_cesd_tot, pop_attwf36m)
+
+### Check data
+summary(linear_dataaexe)
+summary(linear_dataaedu)
+summary(linear_dataasoc)
+
+### Run unadjusted model
+#### exercise
+linear_anxexe <- lm(t36_anx_tot ~ exe_diff, data=linear_dataaexe)
+summary(linear_anxexe)
+
+#### education
+linear_anxedu <- lm(t36_anx_tot ~ edu_diff, data=linear_dataaedu)
+summary(linear_anxedu)
+
+#### social
+linear_anxsoc <- lm(t36_anx_tot ~ soc_diff, data=linear_dataasoc)
+summary(linear_anxsoc)
+
+### Run adjusted model: exercise weighted
+wgt_aexe<- svydesign(ids= ~1, weights=~pop_attwf36m, data= linear_dataaexe)
+
+linear_anxexe <- svyglm(t36_anx_tot ~ exe_diff + racialized_36 + sex_36 + relat36m + educ_36 + emp_36m + t36_cesd_tot, data=linear_dataaexe, design=wgt_aexe)
+summary(linear_anxexe)
+
+# Print the confidence intervals
+conf_aex <- confint(linear_anxexe, level = 0.95)
+
+print(conf_aex)
+
+### Run adjusted model: education
+####Weighted
+wgt_aedu<- svydesign(ids= ~1, weights=~pop_attwf36m, data= linear_dataaedu)
+
+linear_anxedu <- svyglm(t36_anx_tot ~ edu_diff + racialized_36 + sex_36 + relat36m + educ_36 + emp_36m + t36_cesd_tot, data=linear_dataaedu, design=wgt_aedu)
+summary(linear_anxedu)
+
+# Print the confidence intervals
+conf_aedu <- confint(linear_anxedu, level = 0.95)
+
+print(conf_aedu)
+
+
+
+### Run adjusted model: social
+####Weighted 
+wgt_asoc<- svydesign(ids= ~1, weights=~pop_attwf36m, data= linear_dataasoc)
+
+linear_anxsoc <- svyglm(t36_anx_tot ~ soc_diff + racialized_36 + sex_36 + relat36m + educ_36 + emp_36m + t36_cesd_tot, data=linear_dataasoc, design=wgt_asoc)
+summary(linear_anxsoc)
+
+wgt_asoc<- svydesign(ids= ~1, weights=~pop_attwf36m, data= samptot)
+
+linear_anxsoc <- svyglm(t36_anx_tot ~ soc_diff + racialized_36 + sex_36 + relat36m + educ_36 + emp_36m + t36_cesd_tot, data=samptot, design=wgt_asoc)
+summary(linear_anxsoc)
+# Print the confidence intervals
+conf_asoc <- confint(linear_anxsoc, level = 0.95)
+
+print(conf_asoc)
+
+####unweighted
+adjlinear_anxsoc <- lm(t36_anx_tot ~ soc_diff + racialized_36 + sex_36 + relat36m + educ_36 + emp_36m + t36_cesd_tot + t36_lonely_tot, data=linear_dataasoc)
+summary(adjlinear_anxsoc)
+
+```
+
+
+
+
+```{r lonely}
+## Loneliness variable
+### Descriptives
+meansd_loneyes <- c19cs_soceduexe %>% 
+  filter(exe_diff == 1, !is.na(exe_diff), !is.na(t36_lonely_tot)) %>% 
+  summarise(mean = mean(t36_lonely_tot),
+            sd = sd(t36_lonely_tot))
+meansd_loneyes
+
+meansd_loneno <- c19cs_soceduexe %>% 
+  filter(exe_diff == 0, !is.na(exe_diff), !is.na(t36_lonely_tot)) %>% 
+  summarise(mean = mean(t36_lonely_tot),
+            sd = sd(t36_lonely_tot))
+
+meansd_loneno
+
+## T-Tests
+# Perform t-test for each group
+lone_tresult <- t.test(t36_lonely_tot ~ exe_diff, data = c19cs_soceduexe, na.rm = TRUE)
+
+# Print the t-test results
+print(lone_tresult)
+
+
+### Create linear regression model using loneliness scores
+
+### Create linear regression model dataset
+linear_datalexe <- c19cs_soceduexe %>% 
+  filter(!is.na(exe_diff), !is.na(t36_lonely_tot), !is.na(pop_attwf36m)) %>% 
+  select(t36_lonely_tot, exe_diff, racialized_36, sex_36, relat36m, educ_36, emp_36m, t36_anx_tot, t36_cesd_tot, pop_attwf36m)
+
+linear_dataledu <- c19cs_soceduexe %>% 
+  filter(!is.na(edu_diff), !is.na(t36_lonely_tot), !is.na(pop_attwf36m)) %>% 
+  select(t36_lonely_tot, edu_diff, racialized_36, sex_36, relat36m, educ_36, emp_36m, t36_anx_tot, t36_cesd_tot, pop_attwf36m)
+
+linear_datalsoc <- c19cs_soceduexe %>% 
+  filter(!is.na(soc_diff), !is.na(t36_lonely_tot), !is.na(pop_attwf36m)) %>% 
+  select(t36_lonely_tot, soc_diff, racialized_36, sex_36, relat36m, educ_36, emp_36m, t36_anx_tot, t36_cesd_tot, pop_attwf36m)
+
+### Check data
+summary(linear_datalexe)
+summary(linear_dataledu)
+summary(linear_datalsoc)
+
+### Run unadjusted model
+#### exercise
+linear_lonexe <- lm(t36_lonely_tot ~ exe_diff, data=linear_datalexe)
+summary(linear_lonexe)
+
+#### education
+linear_lonedu <- lm(t36_lonely_tot ~ edu_diff, data=linear_dataledu)
+summary(linear_lonedu)
+
+#### social
+linear_lonsoc <- lm(t36_lonely_tot ~ soc_diff, data=linear_datalsoc)
+summary(linear_lonsoc)
+
+### Run adjusted model: exercise
+wgt_lexe<- svydesign(ids= ~1, weights=~pop_attwf36m, data= linear_datalexe)
+
+linear_lexe <- svyglm(t36_lonely_tot ~ exe_diff + racialized_36 + sex_36 + relat36m + educ_36 + emp_36m + t36_cesd_tot + t36_anx_tot, data=linear_datalexe, design=wgt_lexe)
+summary(linear_lexe)
+# Print the confidence intervals
+conf_lexe <- confint(linear_lexe, level = 0.95)
+
+print(conf_lexe)
+
+
+### Run adjusted model: education
+wgt_ledu<- svydesign(ids= ~1, weights=~pop_attwf36m, data= linear_dataledu)
+
+linear_ledu <- svyglm(t36_lonely_tot ~ edu_diff + racialized_36 + sex_36 + relat36m + educ_36 + emp_36m + t36_cesd_tot + t36_anx_tot, data=linear_dataledu, design=wgt_ledu)
+summary(linear_ledu)
+
+# Print the confidence intervals
+conf_ledu <- confint(linear_ledu, level = 0.95)
+
+print(conf_ledu)
+
+
+### Run adjusted model: social
+
+####Weighted 
+wgt_lsoc<- svydesign(ids= ~1, weights=~pop_attwf36m, data= linear_datalsoc)
+
+linear_lsoc <- svyglm(t36_lonely_tot ~ soc_diff + racialized_36 + sex_36 + relat36m + educ_36 + emp_36m + t36_cesd_tot + t36_anx_tot, data=linear_datalsoc, design=wgt_lsoc)
+summary(linear_lsoc)
+
+# Print the confidence intervals
+conf_lsoc <- confint(linear_lsoc, level = 0.95)
+
+print(conf_lsoc)
+
+
+####Unweighted
+adjlinear_lonsoc <- lm(t36_lonely_tot ~ soc_diff + racialized_36 + sex_36 + relat36m + educ_36 + emp_36m + t36_cesd_tot + t36_anx_tot, data=linear_datalsoc)
+summary(adjlinear_lonsoc)
+
+```
+
+```{r anxiety/depression history logistic regression}
+## Create datasets
+linear_databiexe <- c19cs_soceduexe %>% 
+  filter(!is.na(exe_diff), !is.na(anxdep_bin)) %>% 
+  select(anxdep_bin, exe_diff, racialized_36, sex_36, relat36m, educ_36, emp_36m, lonely_bin)
+
+linear_databiedu <- c19cs_soceduexe %>% 
+  filter(!is.na(edu_diff), !is.na(anxdep_bin)) %>% 
+  select(anxdep_bin, edu_diff, racialized_36, sex_36, relat36m, educ_36, emp_36m, lonely_bin)
+
+linear_databisoc <- c19cs_soceduexe %>% 
+  filter(!is.na(soc_diff), !is.na(anxdep_bin)) %>% 
+  select(anxdep_bin, soc_diff, racialized_36, sex_36, relat36m, educ_36, emp_36m, lonely_bin)
+
+## Unadjusted
+unadjreg_anxdepexe <- glm(anxdep_bin ~ exe_diff, data = linear_databiexe, family= binomial)
+summary(unadjreg_anxdepexe)
+exp(0.32894)
+
+unadjreg_anxdepedu <- glm(anxdep_bin ~ edu_diff, data = linear_databiedu, family= binomial)
+summary(unadjreg_anxdepedu)
+exp(0.57200)
+
+unadjreg_anxdepsoc <- glm(anxdep_bin ~ soc_diff, data = linear_databisoc, family= binomial)
+summary(unadjreg_anxdepsoc)
+exp(0.61613)
+
+## Adjusted exercise
+adjreg_anxdepexe <- glm(anxdep_bin ~ exe_diff + racialized_36 + sex_36 + relat36m + educ_36 + emp_36m + lonely_bin, data = linear_databiexe, family= binomial)
+summary(adjreg_anxdepexe)
+exp(0.02245)
+
+## Adjusted education
+adjreg_anxdeped <- glm(anxdep_bin ~ edu_diff + racialized_36 + sex_36 + relat36m + educ_36 + emp_36m + lonely_bin, data = linear_databiedu, family= binomial)
+summary(adjreg_anxdeped)
+exp(0.132050)
+
+## Adjusted social
+adjreg_anxdepsoc <- glm(anxdep_bin ~ soc_diff + racialized_36 + sex_36 + relat36m + educ_36 + emp_36m + lonely_bin, data = linear_databisoc, family= binomial)
+summary(adjreg_anxdepsoc)
+exp(0.01875)
+
+
+```
+

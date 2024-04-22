@@ -1,1 +1,3 @@
-THE DOCUMENTS IN THIS REPOSITORY CONTAIN THE CODES OF PROJECTS I AM CURRENTLY WORKING ON, FOR REFERENCE.
+The documents in this repository contain codes from projects I am currently working on or have worked on in the past. Please contact me for further details, if interested: beckym6798@gmail.com
+
+Thank you!

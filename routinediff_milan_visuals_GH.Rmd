@@ -1,0 +1,398 @@
+---
+title: "Routine Changes and Mental Health since the COVID-19 Pandemic Project - Data Visuals"
+author: "rmilan"
+date: "2024-05-07"
+output: html_document
+---
+
+
+```{r run assoc libraries}
+library(ggplot2)
+library(dplyr)
+library(haven)
+library(car)
+library(coefplot)
+```
+
+
+```{r data cleaning}
+## Ever diagnosed with covid-19
+samptot$cov_lab <- factor(samptot$t36_cov_self_any, levels = c(0,1), labels= c("No","Yes"), exclude=NULL)
+
+table(samptot$cov_lab, samptot$t36_cov_self_any)
+
+## Ever had long covid-19
+samptot$longcov_lab <- factor(samptot$t36_cov_self_long, levels = c(0,1), labels= c("No","Yes"), exclude=NULL)
+
+table(samptot$longcov_lab, samptot$t36_cov_self_long)
+table(samptot$long)
+```
+
+```{r sociodem descriptives - mental health study}
+## Sex
+seprop <- table(samptot$sex_lab)
+seprop
+prop.table(seprop)*100
+
+## Race
+raceprop <- table(samptot$race_lab)
+raceprop
+prop.table(raceprop)*100
+
+## Education
+eduprop <- table(samptot$educ_lab)
+eduprop
+prop.table(eduprop)*100
+
+## Exercise Routine
+exeprop <- table(samptot$exe_difflab)
+exeprop
+prop.table(exeprop)*100
+
+## Social Routine
+socprop <- table(samptot$soc_difflab)
+socprop
+prop.table(socprop)*100
+
+## Education/Creative Routine
+creatprop <- table(samptot$edu_difflab)
+creatprop
+prop.table(creatprop)*100
+
+## CES-D
+summary(samptot$t36_cesd_tot)
+sd(samptot$t36_cesd_tot)
+
+## Beck Anxiety
+summary(samptot$t36_anx_tot)
+sd(samptot$t36_anx_tot)
+## UCLA Lonely
+summary(samptot$t36_lonely_tot)
+sd(samptot$t36_lonely_tot)
+```
+
+```{r sociodem descriptives - total sample y3 qual}
+## Sex
+seprop <- table(samptot$sex_lab)
+seprop
+prop.table(seprop)*100
+
+## Race
+raceprop <- table(samptot$race_lab)
+raceprop
+prop.table(raceprop)*100
+
+## Education
+eduprop <- table(samptot$educ_lab)
+eduprop
+prop.table(eduprop)*100
+
+## Exercise Routine
+exeprop <- table(samptot$exe_difflab)
+exeprop
+prop.table(exeprop)*100
+
+## Social Routine
+socprop <- table(samptot$soc_difflab)
+socprop
+prop.table(socprop)*100
+
+## Education/Creative Routine
+creatprop <- table(samptot$edu_difflab)
+creatprop
+prop.table(creatprop)*100
+
+## CES-D
+summary(samptot$t36_cesd_tot)
+sd(samptot$t36_cesd_tot)
+
+## Beck Anxiety
+summary(samptot$t36_anx_tot)
+sd(samptot$t36_anx_tot)
+## UCLA Lonely
+summary(samptot$t36_lonely_tot)
+sd(samptot$t36_lonely_tot)
+```
+
+```{r exercise diff by sex bar graph}
+ggplot(samptot, aes(x=exe_difflab, fill=sex_lab)) +
+  geom_bar(stat="count", position = "dodge") +
+  labs(title= "Exercise routine changes since COVID-19 Pandemic by sex", x= "Reported change in exercise routine since COVID-19", y= "Frequency", fill= "Sex") +
+  scale_fill_manual(values = c("Male"= "blue","Female"="pink", "Other"="orange", "Prefer not to answer"="black")) +
+  theme_minimal()
+
+```
+
+
+```{r exercise diff & relationship status bar graph}
+ggplot(samptot, aes(x=exe_difflab, fill=relat_lab)) +
+  geom_bar(stat="count", position = "dodge") +
+  labs(title= "Exercise routine changes since COVID-19 Pandemic by Relationship Status", x= "Reported change in exercise routine since COVID-19", y= "Frequency", fill= "Relationship Status") +
+  scale_fill_manual(values = c("single, never married"= "red", "single, divorced/separated"= "black", "single, widowed"="purple", "married or in a relationship"="yellow", "other"="orange")) +
+  theme_minimal()
+
+```
+
+```{r exercise diff & education bar graph}
+ggplot(samptot, aes(x=exe_difflab, fill=educ_lab)) +
+  geom_bar(stat="count", position = "dodge") +
+  labs(title= "Exercise routine changes since COVID-19 Pandemic by Education Level", x= "Reported change in exercise routine since COVID-19", y= "Frequency", fill= "Education level", ) +
+  scale_fill_manual(values = c("less than high school" = "blue", "high school diploma" = "green", "high school equivalent" = "red", "some college" = "aquamarine", "college graduate" = "purple", "graduate school" = "yellow")) +
+  theme_minimal()
+```
+
+
+```{r cross tab exercise diff & employment stat}
+exe_emp <- table(samptot$emp_lab, samptot$exe_difflab)
+exe_emp
+prop.table(exe_emp, margin=2)*100
+
+edu_emp <- table(samptot$emp_lab, samptot$edu_difflab)
+edu_emp
+prop.table(edu_emp, margin=2)*100
+
+soc_emp <- table(samptot$emp_lab, samptot$soc_difflab)
+soc_emp
+prop.table(soc_emp, margin=2)*100
+
+```
+
+```{r routine diff and employment bar graph}
+## Exercise 
+ggplot(samptot, aes(x=exe_difflab, fill=emp_lab)) +
+  geom_bar(stat="count", position = "dodge") +
+  labs(title= "Exercise routine changes since COVID-19 Pandemic by Employment Status", x= "Reported change in exercise routine since COVID-19", y= "Frequency", fill= "Employment Status") +
+  scale_fill_manual(values = c("Not working"="brown", "working"="gold", "in school"="blue", "retired"="purple", "homemaker"="orange", "other"="magenta")) +
+  theme_minimal()
+
+## Social
+ggplot(samptot, aes(x=soc_difflab, fill=emp_lab)) +
+  geom_bar(stat="count", position = "dodge") +
+  labs(title= "Social routine changes since COVID-19 Pandemic by Employment Status", x= "Reported change in social routine since COVID-19", y= "Frequency", fill= "Employment Status") +
+  scale_fill_manual(values = c("Not working"="brown", "working"="gold", "in school"="blue", "retired"="purple", "homemaker"="orange", "other"="magenta")) +
+  theme_minimal()
+
+## Education/creative
+ggplot(samptot, aes(x=edu_difflab, fill=emp_lab)) +
+  geom_bar(stat="count", position = "dodge") +
+  labs(title= "Educational/creative activity routine changes since COVID-19 Pandemic by Employment Status", x= "Reported change in educational/creative activity routine since COVID-19", y= "Frequency", fill= "Employment Status") +
+  scale_fill_manual(values = c("Not working"="brown", "working"="gold", "in school"="blue", "retired"="purple", "homemaker"="orange", "other"="magenta")) +
+  theme_minimal()
+```
+
+```{r covid-19 symptoms}
+
+samptot$t36_cov_everlab <- factor(samptot$t36_cov_self_any, levels = c(0,1,2), labels= c("No","1 instance", "2+ instances"), exclude=NULL)
+table(samptot$t36_cov_everlab, samptot$t36_cov_self_any)
+## Ever had covid graph with exercise differences
+samptot %>% 
+  filter(!is.na(t36_cov_everlab)) %>% 
+ggplot(aes(x=exe_difflab, fill=t36_cov_everlab)) +
+  geom_bar(stat="count", position = "dodge") +
+  labs(title= "Exercise routine changes since COVID-19 Pandemic by participant covid history", x= "Change in exercise routine since COVID-19 Pandemic", y= "Frequency", fill="Ever had COVID-19") +
+  scale_fill_manual(values= c("No"="purple", "1 instance"="red", "2+ instances"="blue")) +
+  theme_minimal()
+
+## Ever had covid graph with social differences
+samptot %>% 
+  filter(!is.na(t36_cov_everlab)) %>% 
+ggplot(aes(x=soc_difflab, fill=t36_cov_everlab)) +
+  geom_bar(stat="count", position = "dodge") +
+  labs(title= "Social routine changes since COVID-19 Pandemic by participant covid history", x= "Change in social routine since COVID-19 Pandemic", y= "Frequency", fill="Ever had COVID-19") +
+  scale_fill_manual(values= c("No"="purple", "1 instance"="red", "2+ instances"="blue")) +
+  theme_minimal()
+
+## Ever had covid graph with education/creative routine differences
+samptot %>% 
+  filter(!is.na(t36_cov_everlab)) %>% 
+ggplot(aes(x=edu_difflab, fill=t36_cov_everlab)) +
+  geom_bar(stat="count", position = "dodge") +
+  labs(title= "Education/creative routine changes since COVID-19 Pandemic by participant covid history", x= "Change in education/creative routine since the COVID-19 Pandemic", y= "Frequency", fill="Ever had COVID-19") +
+  scale_fill_manual(values= c("No"="purple", "1 instance"="red", "2+ instances"="blue")) +
+  theme_minimal()
+
+```
+
+```{r dep descriptives}
+## Descriptive stats
+
+### Exercise
+mean_cesdex <- samptot %>%
+  group_by(exe_difflab) %>%
+  summarize(mean_cesd = mean(t36_cesd_tot))
+####  Print the result
+print(mean_cesdex)
+
+
+### Social
+mean_cesdsoc <- samptot %>%
+  group_by(soc_difflab) %>%
+  summarize(mean_cesd = mean(t36_cesd_tot))
+#### Print the result
+print(mean_cesdsoc)
+
+
+### Education
+mean_cesdedu <- samptot %>%
+  group_by(edu_diff) %>%
+  summarize(mean_cesd = mean(t36_cesd_tot))
+#### Print the result
+print(mean_cesdedu)
+
+```
+
+
+```{r depression descriptives and ttest}
+
+### Exercise bar
+samptot %>% 
+ggplot(aes(x = exe_difflab, y = t36_cesd_tot)) +
+  stat_summary(fun = mean, geom = "bar", fill = "violet", color = "black", position = "dodge") +
+  labs(title = "Bar Graph of Mean CES-D Scores by Change in Exercise Routine",
+       x = "Reported change in Exercise Routine", y = "Mean CES-D Scores") +
+  theme_minimal()
+
+### EDUCATION bar
+samptot %>% 
+ggplot(aes(x = edu_difflab, y = t36_cesd_tot)) +
+  stat_summary(fun = mean, geom = "bar", fill = "blue", color = "black", position = "dodge") +
+  labs(title = "Bar Graph of Mean CES-D Scores by Change in Education/Creative Routine",
+       x = "Reported change in Education/Creative Routine", y = "Mean CES-D Scores") +
+  theme_minimal()
+
+
+### Social bar 
+samptot %>% 
+ggplot(aes(x = soc_difflab, y = t36_cesd_tot)) +
+  stat_summary(fun = mean, geom = "bar", fill = "red", color = "black", position = "dodge") +
+  labs(title = "Bar Graph of Mean CES-D Scores by Change in Social Routine",
+       x = "Reported change in Social Routine", y = "Mean CES-D Scores") +
+  theme_minimal()
+
+
+## T-Tests
+# Perform t-test for each group
+unique(samptot$exe_difflab)
+
+dep_tresult <- t.test(t36_cesd_tot ~ exe_difflab, data = samptot, na.rm = TRUE)
+
+# Print the t-test results
+print(dep_tresult)
+```
+
+```{r anxiety descriptives and ttest}
+
+## Create bar graph 
+
+### Exercise
+samptot %>% 
+ggplot(aes(x = exe_difflab, y = t36_anx_tot)) +
+  stat_summary(fun = mean, geom = "bar", fill = "lightblue", color = "black", position = "dodge") +
+  labs(title = "Bar Graph of Mean Anxiety Scores by Change in Exercise Routine",
+       x = "Reported change in Exercise Routine", y = "Mean Anxiety Scores") +
+  theme_minimal()
+
+### Social
+samptot %>% 
+ggplot(aes(x = soc_difflab, y = t36_anx_tot)) +
+  stat_summary(fun = mean, geom = "bar", fill = "violet", color = "black", position = "dodge") +
+  labs(title = "Bar Graph of Mean Anxiety Scores by Change in Social Routine",
+       x = "Reported change in Social Routine", y = "Mean Anxiety Scores") +
+  theme_minimal()
+
+### Education/creative
+samptot %>% 
+ggplot(aes(x = edu_difflab, y = t36_anx_tot)) +
+  stat_summary(fun = mean, geom = "bar", fill = "lightgreen", color = "black", position = "dodge") +
+  labs(title = "Bar Graph of Mean Anxiety Scores by Change in Education/Creative Routine",
+       x = "Reported change in Education/Creative Routine", y = "Mean Anxiety Scores") +
+  theme_minimal()
+
+## T-Tests
+# Perform t-test for each group
+anx_tresult <- t.test(t36_anx_tot ~ exe_diff, data = samptot, na.rm = TRUE)
+
+# Print the t-test results
+print(anx_tresult)
+
+```
+
+
+```{r loneliness descriptives and ttest}
+
+# Create bar graph 
+## Exercise
+samptot %>% 
+ggplot(aes(x = exe_difflab, y = t36_lonely_tot)) +
+  stat_summary(fun = mean, geom = "bar", fill = "lightblue", color = "black", position = "dodge") +
+  labs(title = "Bar Graph of Mean Loneliness Scores by Change in Exercise Routine",
+       x = "Reported change in Exercise Routine", y = "Mean Loneliness Scores") +
+  theme_minimal()
+
+## Social
+samptot %>% 
+ggplot(aes(x = soc_difflab, y = t36_lonely_tot)) +
+  stat_summary(fun = mean, geom = "bar", fill = "violet", color = "black", position = "dodge") +
+  labs(title = "Bar Graph of Mean Loneliness Scores by Change in Social Routine",
+       x = "Reported change in Social Routine", y = "Mean Loneliness Scores") +
+  theme_minimal()
+
+## Education/creative
+samptot %>% 
+ggplot(aes(x = edu_difflab, y = t36_lonely_tot)) +
+  stat_summary(fun = mean, geom = "bar", fill = "lightgreen", color = "black", position = "dodge") +
+  labs(title = "Bar Graph of Mean Loneliness Scores by Change in Education/Creative Routine",
+       x = "Reported change in Education/Creative Routine", y = "Mean Loneliness Scores") +
+  theme_minimal()
+
+## T-Tests
+### Perform t-test for each group
+#### Exercise
+anxex_tresult <- t.test(t36_anx_tot ~ exe_diff, data = samptot, na.rm = TRUE)
+
+#### Education
+anxed_tresult <- t.test(t36_anx_tot ~ edu_diff, data = samptot, na.rm = TRUE)
+
+#### Social
+anxso_tresult <- t.test(t36_anx_tot ~ soc_diff, data = samptot, na.rm = TRUE)
+
+# Print the t-test results
+print(anxex_tresult)
+print(anxed_tresult)
+print(anxso_tresult) # Means are significantly different across groups
+```
+
+
+```{r loneliness descriptives}
+# Descriptives
+meansd_loneyes <- samptot %>% 
+  summarise(mean = mean(t36_lonely_tot),
+            sd = sd(t36_lonely_tot))
+meansd_loneyes
+
+meansd_loneno <- samptot %>% 
+  summarise(mean = mean(t36_lonely_tot),
+            sd = sd(t36_lonely_tot))
+
+meansd_loneno
+
+# T-Tests
+## Perform t-test for each group
+### Exercise
+lonexe_tresult <- t.test(t36_lonely_tot ~ exe_difflab, data = samptot, na.rm = TRUE)
+
+### Social
+lonsoc_tresult <- t.test(t36_lonely_tot ~ soc_difflab, data = samptot, na.rm = TRUE)
+
+### Education
+lonedu_tresult <- t.test(t36_lonely_tot ~ edu_difflab, data = samptot, na.rm = TRUE)
+
+# Print the t-test results
+print(lonexe_tresult) 
+print(lonsoc_tresult) 
+print(lonedu_tresult) 
+# Means are significantly different across groups
+```
+
+
+

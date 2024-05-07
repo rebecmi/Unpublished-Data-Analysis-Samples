@@ -1,0 +1,323 @@
+---
+title: "Routine Changes and Mental Health since the COVID-19 Pandemic Project - Analysis"
+author: "Rebecca Milan"
+date: "2024-05-07"
+---
+
+```{r run assoc libraries}
+library(ggplot2)
+library(dplyr)
+library(haven)
+library(car)
+library(coefplot)
+library(nnet)
+library(knitr)
+library(survey)
+library(broom)
+```
+
+
+```{r create population weight}
+wgt_36m <- svydesign(ids= ~1, weights=~pop_attwf36m, data= samptot)
+```
+
+
+```{r depression and routines linear regression}
+
+## Run weighted Model: exercise
+
+linear_depex <- svyglm(t36_cesd_tot ~ exe_difflab + race_lab + sex_lab + relat_lab + educ_lab + emp_lab + t36_anx_tot, data=samptot, design=wgt_36m)
+summary(linear_depex) ## Individuals who self-reported a change to their exercise routine since the pandemic did not have significantly different CES-D scores than those who did not. 
+
+### Print the confidence intervals
+conf_depex <- confint(linear_depex, level = 0.90)
+
+print(conf_depex)
+
+### Create a Q-Q plot of the residuals to check distribution
+qqnorm(residuals(linear_depex))
+qqline(residuals(linear_depex))
+
+### Create a histogram of the residuals
+hist(residuals(linear_depex), main = "Histogram of Residuals:CES-D Exe") ## Normally distributed!!
+
+### Create a density plot of the residuals
+plot(density(residuals(linear_depex)), main = "Density Plot of Residuals: CES-D Exe") ## Normally distributed!!
+
+
+## Run weighted Model: Education
+linear_deped <- svyglm(t36_cesd_tot ~ edu_difflab + race_lab + sex_lab + relat_lab + educ_lab + emp_lab + t36_anx_tot, data=samptot, design=wgt_36m)
+summary(linear_deped) # Individuals who reported changes to the education/creative activity routines since the COVID-19 pandemic had CES-D scores that were 0.32 points higher than individuals who did not
+
+# Print the confidence intervals
+conf_deped <- confint(linear_deped, level = 0.90)
+
+print(conf_deped)
+
+### Create a Q-Q plot of the residuals to check distribution
+qqnorm(residuals(linear_deped))
+qqline(residuals(linear_deped))
+
+### Create a histogram of the residuals
+hist(residuals(linear_deped), main = "Histogram of Residuals: CES-D Edu") ## Normally distributed!!
+
+### Create a density plot of the residuals
+plot(density(residuals(linear_deped)), main = "Density Plot of Residuals: CES-D Edu") ## Normally distributed!!
+
+
+### Run weighted Model: social
+linear_depsoc <- svyglm(t36_cesd_tot ~ soc_difflab + race_lab + sex_lab + relat_lab + educ_lab + emp_lab + t36_anx_tot, data=samptot, design=wgt_36m) # Individuals who reported changes to the social routines since the COVID-19 pandemic had CES-D scores that were 0.35 points higher than individuals who did not
+summary(linear_depsoc)
+
+# Print the confidence intervals
+conf_depsoc <- confint(linear_depsoc, level = 0.90)
+
+print(conf_depsoc)
+
+### Create a Q-Q plot of the residuals to check distribution
+qqnorm(residuals(linear_depsoc))
+qqline(residuals(linear_depsoc)) 
+
+### Create a histogram of the residuals
+hist(residuals(linear_depsoc), main = "Histogram of Residuals: CES-D Soc") ## Normally distributed!!
+
+### Create a density plot of the residuals
+plot(density(residuals(linear_depsoc)), main = "Density Plot of Residuals: CES-D Soc") ## Normally distributed!!
+
+
+```
+
+```{r linear regression: anxiety score and change in routines}
+## Linear regression model: anxiety
+
+### Run weighted model: exercise weighted
+linear_anxexe <- svyglm(t36_anx_tot ~ exe_difflab + race_lab + sex_lab + relat_lab + educ_lab + emp_lab + t36_cesd_tot, data=samptot, design=wgt_36m)
+summary(linear_anxexe) # Individuals who reported changes to the exercise routines since the COVID-19 pandemic had anxiety scores that were not significantly different than those who did not.
+
+# Print the confidence intervals
+conf_aex <- confint(linear_anxexe, level = 0.90)
+
+print(conf_aex)
+
+### Create a Q-Q plot of the residuals to check distribution
+qqnorm(residuals(linear_anxexe))
+qqline(residuals(linear_anxexe)) 
+
+### Create a histogram of the residuals
+hist(residuals(linear_anxexe), main = "Histogram of Residuals: Beck Exe") ## Normally distributed!!
+
+### Create a density plot of the residuals
+plot(density(residuals(linear_anxexe)), main = "Density Plot of Residuals: Beck Exe") ## Normally distributed!!
+
+### Run weighted model: education
+linear_anxedu <- svyglm(t36_anx_tot ~ edu_difflab + race_lab + sex_lab + relat_lab + educ_lab + emp_lab + t36_cesd_tot, data=samptot, design=wgt_36m) 
+summary(linear_anxedu)  # Individuals who reported changes to the education/creative activity routines since the COVID-19 pandemic had anxiety scores that were 0.51 points higher than individuals who did not
+
+# Print the confidence intervals
+conf_aedu <- confint(linear_anxedu, level = 0.90)
+
+print(conf_aedu)
+
+### Create a Q-Q plot of the residuals to check distribution
+qqnorm(residuals(linear_anxedu))
+qqline(residuals(linear_anxedu)) 
+
+### Create a histogram of the residuals
+hist(residuals(linear_anxedu), main = "Histogram of Residuals: Beck Edu") ## Normally distributed!!
+
+### Create a density plot of the residuals
+plot(density(residuals(linear_anxedu)), main = "Density Plot of Residuals: Beck Edu") ## Normally distributed!!
+
+
+### Run weighted model: social
+linear_anxsoc <- svyglm(t36_anx_tot ~ soc_difflab + race_lab + sex_lab + relat_lab + educ_lab + emp_lab + t36_cesd_tot, data=samptot, design=wgt_36m)
+summary(linear_anxsoc)  # Individuals who reported changes to the social routines since the COVID-19 pandemic had anxiety scores that were 0.32 points higher than individuals who did not
+
+# Print the confidence intervals
+conf_asoc <- confint(linear_anxsoc, level = 0.90)
+
+print(conf_asoc)
+
+### Create a Q-Q plot of the residuals to check distribution
+qqnorm(residuals(linear_anxsoc))
+qqline(residuals(linear_anxsoc)) 
+
+### Create a histogram of the residuals
+hist(residuals(linear_anxsoc), main = "Histogram of Residuals: Beck Soc") ## Normally distributed!!
+
+### Create a density plot of the residuals
+plot(density(residuals(linear_anxsoc)), main = "Density Plot of Residuals: Beck Soc") ## Normally distributed!!
+
+```
+
+```{r linear regression: loneliness score and change in routines}
+# Create linear regression model using loneliness scores
+## Run adjusted model: exercise
+linear_lexe <- svyglm(t36_lonely_tot ~ exe_difflab + race_lab + sex_lab + relat_lab + educ_lab + emp_lab + t36_cesd_tot + t36_anx_tot, data=samptot, design=wgt_36m) 
+summary(linear_lexe) ## People who reported changes to their exercise routine since the covid-19 pandemic had loneliness scores that were 0.27 points higher than individuals who did not
+# Print the confidence intervals
+conf_lexe <- confint(linear_lexe, level = 0.90)
+
+print(conf_lexe)
+### Create a Q-Q plot of the residuals to check distribution
+qqnorm(residuals(linear_lexe))
+qqline(residuals(linear_lexe)) 
+
+### Create a histogram of the residuals
+hist(residuals(linear_lexe), main = "Histogram of Residuals: Lonely Exe") ## Normally distributed!!
+
+### Create a density plot of the residuals
+plot(density(residuals(linear_lexe)), main = "Density Plot of Residuals: Lonely Exe") ## Normally distributed!!
+
+### Run adjusted model: education
+linear_ledu <- svyglm(t36_lonely_tot ~ edu_difflab  + race_lab + sex_lab + relat_lab + educ_lab + emp_lab + t36_cesd_tot + t36_anx_tot, data=samptot, design=wgt_36m)
+summary(linear_ledu) # Individuals who reported changes to their education/creative activity routines had loneliness scores that were 0.35 points higher than individuals who did not report changes
+
+# Print the confidence intervals
+conf_ledu <- confint(linear_ledu, level = 0.90)
+
+print(conf_ledu)
+
+### Create a Q-Q plot of the residuals to check distribution
+qqnorm(residuals(linear_ledu))
+qqline(residuals(linear_ledu)) 
+
+### Create a histogram of the residuals
+hist(residuals(linear_ledu), main = "Histogram of Residuals: Lonely Edu") ## Normally distributed!!
+
+### Create a density plot of the residuals
+plot(density(residuals(linear_ledu)), main = "Density Plot of Residuals: Lonely Edu") ## Normally distributed!!
+
+### Run adjusted model: social
+
+####Weighted 
+linear_lsoc <- svyglm(t36_lonely_tot ~ soc_difflab  + race_lab + sex_lab + relat_lab + educ_lab + emp_lab + t36_cesd_tot + t36_anx_tot, data=samptot, design=wgt_36m)
+summary(linear_lsoc) # Individuals who reported changes to their social routines since the covid-19 pandemic had loneliness scores that were 0.30 points higher than individuals who did not
+
+# Print the confidence intervals
+conf_lsoc <- confint(linear_lsoc, level = 0.90)
+
+print(conf_lsoc)
+
+### Create a Q-Q plot of the residuals to check distribution
+qqnorm(residuals(linear_lsoc))
+qqline(residuals(linear_lsoc)) 
+
+### Create a histogram of the residuals
+hist(residuals(linear_lsoc), main = "Histogram of Residuals: Lonely Soc") ## Normally distributed!!
+
+### Create a density plot of the residuals
+plot(density(residuals(linear_lsoc)), main = "Density Plot of Residuals: Lonely Soc") ## Normally distributed!!
+
+```
+
+```{r coefficient plots: Depression}
+
+# Tidy up the model outputs for depression
+tidy_depexe <- tidy(linear_depex)
+tidy_depedu <- tidy(linear_deped)
+tidy_depsoc <- tidy(linear_depsoc)
+
+# Add a column to indicate the model
+tidy_depexe$model <- "dep_exe"
+tidy_depedu$model <- "dep_ed"
+tidy_depsoc$model <- "dep_soc"
+
+# Combine coefficients from all depression models
+combined_dep <- rbind(tidy_depexe, tidy_depedu, tidy_depsoc)
+
+# Calculate confidence intervals
+combined_dep$conf.low <- combined_dep$estimate - 1.96 * combined_dep$std.error
+combined_dep$conf.high <- combined_dep$estimate + 1.96 * combined_dep$std.error
+
+# Filter coefficients for edu, exe, soc
+terms <- c('exe_difflabYes', 'edu_difflabYes', 'soc_difflabYes')
+coeff_depterm <- combined_dep[combined_dep$term %in% terms, ]
+
+# Plot coefficients
+dep_plot <- ggplot(coeff_depterm, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high, color = model)) +
+  geom_pointrange(position = position_dodge(width = 0.2)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  coord_flip() +
+  labs(title = "Linear Regression for CES-D Depression Scores and Routine Changes",
+       x = "Change in routine",
+       y = "Estimate") +
+  theme_minimal()
+
+# Print the plot
+print(dep_plot)
+
+```
+
+```{r coefficient plots: Anxiety}
+# Tidy up the model outputs for depression
+tidy_anxexe <- tidy(linear_anxexe)
+tidy_anxedu <- tidy(linear_anxedu)
+tidy_anxsoc <- tidy(linear_anxsoc)
+
+# Add a column to indicate the model
+tidy_anxexe$model <- "anx_exe"
+tidy_anxedu$model <- "anx_ed"
+tidy_anxsoc$model <- "anx_soc"
+
+# Combine coefficients from all depression models
+combined_anx <- rbind(tidy_anxexe, tidy_anxedu, tidy_anxsoc)
+
+# Calculate confidence intervals
+combined_anx$conf.low <- combined_anx$estimate - 1.96 * combined_anx$std.error
+combined_anx$conf.high <- combined_anx$estimate + 1.96 * combined_anx$std.error
+
+# Filter coefficients for edu, exe, soc
+coeff_anxterm <- combined_anx[combined_anx$term %in% terms, ]
+
+# Plot coefficients
+anx_plot <- ggplot(coeff_anxterm, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high, color = model)) +
+  geom_pointrange(position = position_dodge(width = 0.2)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  coord_flip() +
+  labs(title = "Linear Regression Estimates for anxiety scores and routine changes",
+       x = "Change in routine",
+       y = "Estimate") +
+  theme_minimal()
+
+# Print the plot
+print(anx_plot)
+
+```
+
+
+```{r coefficient plots: Loneliness}
+# Tidy up the model outputs for depression
+tidy_lonexe <- tidy(linear_lexe)
+tidy_lonedu <- tidy(linear_ledu)
+tidy_lonsoc <- tidy(linear_lsoc)
+
+# Add a column to indicate the model
+tidy_lonexe$model <- "lone_exe"
+tidy_lonedu$model <- "lone_ed"
+tidy_lonsoc$model <- "lone_soc"
+
+# Combine coefficients from all depression models
+combined_lone <- rbind(tidy_lonexe, tidy_lonedu, tidy_lonsoc)
+
+# Calculate confidence intervals
+combined_lone$conf.low <- combined_lone$estimate - 1.96 * combined_lone$std.error
+combined_lone$conf.high <- combined_lone$estimate + 1.96 * combined_lone$std.error
+
+# Filter coefficients for edu, exe, soc
+coeff_lonterm <- combined_dep[combined_dep$term %in% terms, ]
+
+# Plot coefficients
+lone_plot <- ggplot(coeff_lonterm, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high, color = model)) +
+  geom_pointrange(position = position_dodge(width = 0.2)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  coord_flip() +
+  labs(title = "Linear Regression Estimates Between Routine Changes and Loneliness Scores",
+       x = "Change in routine",
+       y = "Estimate") +
+  theme_minimal()
+
+# Print the plot
+print(lone_plot)
+
+```
